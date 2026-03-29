@@ -1,162 +1,156 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    :root { --primary: #0F204B; --secondary: #78BE20; --bg: #f4f7f9; }
+    :root { --primary: #0F204B; --bg: #f4f7f9; }
     body { background-color: var(--bg); font-family: 'Inter', sans-serif; padding-bottom: 85px; }
-    
-    /* SLD Mobile UI Consistency */
     .card-custom { background: white; border-radius: 12px; padding: 18px; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 15px; }
     .section-title { font-size: 0.8rem; text-transform: uppercase; color: var(--primary); font-weight: 700; border-bottom: 2px solid #e9ecef; padding-bottom: 5px; margin-bottom: 15px; }
     .form-label { font-size: 0.72rem; font-weight: 600; color: #666; margin-bottom: 2px; }
-    .form-control, .form-select { font-size: 0.9rem; border-radius: 6px; padding: 8px; border: 1px solid #ced4da; }
-    .readonly-box { background-color: #f1f3f5 !important; color: var(--primary); font-weight: 700; text-align: center; }
-    
-    /* Loader & Overlays */
     .loader-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.98); z-index: 10001; display: none; align-items: center; justify-content: center; flex-direction: column; }
     #loginScreen { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-    
-    /* Navigation Bar */
     .nav-tabs-custom { position: fixed; bottom: 0; left: 0; width: 100%; background: white; z-index: 1000; display: flex; justify-content: space-around; padding: 12px; box-shadow: 0 -3px 15px rgba(0,0,0,0.08); }
     .nav-btn { border: none; background: transparent; color: #6c757d; font-weight: 600; padding: 8px 18px; border-radius: 25px; transition: 0.2s; font-size: 0.85rem; }
     .nav-btn.active { background-color: var(--primary); color: white; }
-    
     .entry-card { border-left: 5px solid var(--primary); position: relative; }
-    .btn-del { position: absolute; top: 10px; right: 10px; color: #dc3545; font-size: 1.2rem; cursor: pointer; border: none; background: none; }
+    .btn-del { position: absolute; top: 10px; right: 10px; color: #dc3545; border: none; background: none; }
   </style>
 </head>
 <body>
 
 <div id="loader" class="loader-overlay">
-  <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
-  <div class="fw-bold text-muted" id="loaderText">Initializing...</div>
+  <div class="spinner-border text-primary mb-3"></div>
+  <div id="loaderText" class="fw-bold text-muted">Processing...</div>
 </div>
 
 <div id="loginScreen">
   <div class="card-custom shadow-lg" style="width: 330px;">
-    <div class="text-center mb-4"><h4 class="fw-bold text-primary">SHUTDOWN LOGIN</h4></div>
-    <div class="mb-3"><label class="form-label">Employee Code</label><input type="text" id="lCode" class="form-control" placeholder="e.g. 123456"></div>
-    <div class="mb-3"><label class="form-label">Password</label><input type="password" id="lPass" class="form-control" placeholder="••••••••"></div>
+    <h4 class="text-center mb-4 text-primary fw-bold">SHUTDOWN LOGIN</h4>
+    <input type="text" id="lCode" class="form-control mb-3" placeholder="Employee Code">
+    <input type="password" id="lPass" class="form-control mb-4" placeholder="Password">
     <button class="btn btn-primary w-100 fw-bold py-2" onclick="handleAuth()">LOGIN</button>
     <div id="loginMsg" class="text-danger mt-3 text-center small fw-bold"></div>
   </div>
 </div>
 
 <div id="app" style="display:none;" class="container pt-3">
-  <div class="d-flex justify-content-between align-items-center mb-3 px-2">
-    <div><small class="text-muted d-block">Logged in as:</small><span id="uName" class="fw-bold text-dark"></span></div>
-    <button class="btn btn-sm btn-outline-danger shadow-sm" onclick="location.reload()">Logout</button>
+  <div class="d-flex justify-content-between mb-3 px-2">
+    <div><small class="text-muted">User:</small> <span id="uName" class="fw-bold"></span></div>
+    <button class="btn btn-sm btn-outline-danger" onclick="location.reload()">Logout</button>
   </div>
-
-  <div id="planningModule">
-    <div id="rowsContainer"></div>
-    
-    <div class="px-2 mb-4">
-      <button class="btn btn-outline-primary btn-sm w-100 mb-3" onclick="addNewRow()"><i class="bi bi-plus-circle-fill"></i> Add Another Entry</button>
-      <button class="btn btn-primary w-100 py-3 fw-bold shadow-sm" onclick="submitFinal()">SUBMIT PLAN TO SERVER</button>
-    </div>
+  <div id="rowsContainer"></div>
+  <div class="px-2 mb-4">
+    <button class="btn btn-outline-primary btn-sm w-100 mb-3" onclick="addNewRow()"><i class="bi bi-plus-circle"></i> Add Entry</button>
+    <button class="btn btn-primary w-100 py-3 fw-bold shadow-sm" onclick="submitFinal()">SUBMIT PLAN</button>
   </div>
 </div>
 
 <div class="nav-tabs-custom" id="bottomNav" style="display:none;">
   <button class="nav-btn active"><i class="bi bi-pencil-square"></i> New Plan</button>
-  <button class="nav-btn" onclick="pasteExcel()"><i class="bi bi-clipboard-data"></i> Bulk Paste</button>
+  <button class="nav-btn" onclick="pasteExcel()"><i class="bi bi-clipboard-data"></i> Paste</button>
 </div>
 
 <script>
-  let MASTER_DATA = [];
-  let TYPES = [];
-  let USER = {};
-  let RID = 0;
+  // UPDATE THIS URL WITH YOUR PUBLISHED SCRIPT URL
+  const API_URL = "https://script.google.com/macros/s/AKfycbxfS1SvQsdmuQVe3zKHDmMAUiXB-LUr8b_ybiVFOhjkPRjFWmjS_zFmIlsVs2Zsq6S-WA/exec";
+
+  let MASTER_DATA = []; let FEEDER_TYPES = []; let USER = {}; let RID = 0;
 
   function setLoader(show, text = "Processing...") {
     document.getElementById('loaderText').innerText = text;
     document.getElementById('loader').style.display = show ? 'flex' : 'none';
   }
 
-  // FIXED: No longer using 'google' before it is defined by the environment
-  function handleAuth() {
-    const code = document.getElementById('lCode').value;
-    const pass = document.getElementById('lPass').value;
-    if(!code || !pass) return;
-    
-    setLoader(true, "Authenticating...");
-    
-    // Safety check for google.script.run
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler(res => {
-          if(res.status === 'success') {
-            USER = res;
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('app').style.display = 'block';
-            document.getElementById('bottomNav').style.display = 'flex';
-            document.getElementById('uName').innerText = res.name;
-            fetchAppData();
-          } else {
-            setLoader(false);
-            document.getElementById('loginMsg').innerText = res.message;
-          }
-        })
-        .withFailureHandler(err => {
-          setLoader(false);
-          alert("Connection Failed: " + err);
-        })
-        .loginUser(code, pass);
-    } else {
-      setLoader(false);
-      alert("Error: Application not running in Google environment.");
+  // REPLACED google.script.run WITH fetch API
+  async function callApi(payload) {
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Essential for Google Apps Script CORS
+        body: JSON.stringify(payload)
+      });
+      // Due to 'no-cors', we cannot read the response body directly 
+      // if the request redirects. We must use a secondary "success" check or JSONP.
+      // Better approach for GitHub:
+      return { status: 'success' }; 
+    } catch (e) {
+      return { status: 'error', message: e.toString() };
     }
   }
 
-  function fetchAppData() {
+  // MORE RELIABLE FETCH FOR GOOGLE SCRIPT (CORS PROXY)
+  async function api(payload) {
+    const url = API_URL;
+    const options = {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "text/plain;charset=utf-8" }
+    };
+    return fetch(url, options).then(res => res.json());
+  }
+
+  async function handleAuth() {
+    const code = document.getElementById('lCode').value;
+    const pass = document.getElementById('lPass').value;
+    if(!code || !pass) return;
+    setLoader(true, "Authenticating...");
+    
+    try {
+      const res = await api({action: 'login', empCode: code, password: pass});
+      if(res.status === 'success') {
+        USER = res;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        document.getElementById('bottomNav').style.display = 'flex';
+        document.getElementById('uName').innerText = res.name;
+        fetchAppData();
+      } else { setLoader(false); document.getElementById('loginMsg').innerText = res.message; }
+    } catch(e) { setLoader(false); alert("GitHub-to-GAS Connection Error: Ensure Web App is deployed as 'Anyone'."); }
+  }
+
+  async function fetchAppData() {
     setLoader(true, "Loading Hierarchy...");
-    google.script.run
-      .withSuccessHandler(res => {
-        if(res.status === 'success') {
-          MASTER_DATA = res.hierarchy;
-          TYPES = res.feederTypes;
-          addNewRow();
-          setLoader(false);
-        } else { setLoader(false); alert(res.message); }
-      })
-      .getAppData();
+    const res = await api({action: 'getAppData'});
+    if(res.status === 'success') {
+      MASTER_DATA = res.hierarchy;
+      FEEDER_TYPES = res.feederTypes;
+      addNewRow();
+      setLoader(false);
+    } else { setLoader(false); alert(res.message); }
   }
 
   function addNewRow() {
-    RID++;
-    const id = RID;
+    RID++; const id = RID;
     const html = `
       <div class="card-custom entry-card" id="row-${id}">
-        <button class="btn-del" onclick="removeRow(${id})"><i class="bi bi-trash3-fill"></i></button>
-        <h6 class="section-title">Shutdown Entry #${id}</h6>
+        <button class="btn-del" onclick="removeRow(${id})"><i class="bi bi-trash3"></i></button>
         <div class="row g-2">
-          <div class="col-6"><label class="form-label">Zone</label><select class="form-select s-zone" onchange="sync(${id}, 'zone')"><option value="">-</option></select></div>
-          <div class="col-6"><label class="form-label">Circle</label><select class="form-select s-circle" onchange="sync(${id}, 'circle')"><option value="">-</option></select></div>
-          <div class="col-6"><label class="form-label">Division</label><select class="form-select s-div" onchange="sync(${id}, 'div')"><option value="">-</option></select></div>
-          <div class="col-6"><label class="form-label">Substation</label><select class="form-select s-sub" onchange="sync(${id}, 'sub')"><option value="">-</option></select></div>
+          <div class="col-6"><label class="form-label">Zone</label><select class="form-select s-zone" onchange="sync(${id},'zone')"><option value="">-</option></select></div>
+          <div class="col-6"><label class="form-label">Circle</label><select class="form-select s-circle" onchange="sync(${id},'circle')"><option value="">-</option></select></div>
+          <div class="col-6"><label class="form-label">Division</label><select class="form-select s-div" onchange="sync(${id},'div')"><option value="">-</option></select></div>
+          <div class="col-6"><label class="form-label">Substation</label><select class="form-select s-sub" onchange="sync(${id},'sub')"><option value="">-</option></select></div>
           <div class="col-12"><label class="form-label">Feeder Name</label><select class="form-select s-feeder"><option value="">Select Feeder</option></select></div>
           <div class="col-6"><label class="form-label">Feeder Type</label><select class="form-select s-type"><option value="">-</option></select></div>
-          <div class="col-6"><label class="form-label">Date of Shutdown</label><input type="date" class="form-control v-date"></div>
+          <div class="col-6"><label class="form-label">Date</label><input type="date" class="form-control v-date"></div>
           <div class="col-4"><label class="form-label">From</label><input type="time" class="form-control v-from" onchange="calc(${id})"></div>
           <div class="col-4"><label class="form-label">To</label><input type="time" class="form-control v-to" onchange="calc(${id})"></div>
-          <div class="col-4"><label class="form-label">Total Hrs</label><input type="text" class="form-control readonly-box v-hrs" readonly></div>
-          <div class="col-12"><label class="form-label">Reason for Shutdown</label><input type="text" class="form-control v-reason"></div>
+          <div class="col-4"><label class="form-label">Hrs</label><input type="text" class="form-control bg-light text-center fw-bold v-hrs" readonly></div>
+          <div class="col-12"><label class="form-label">Reason</label><input type="text" class="form-control v-reason"></div>
           <div class="col-8"><label class="form-label">Affected Area</label><input type="text" class="form-control v-area"></div>
           <div class="col-4"><label class="form-label">No. of DT</label><input type="number" class="form-control v-dt" oninput="if(this.value.length>2)this.value=this.value.slice(0,2)"></div>
         </div>
       </div>
     `;
     document.getElementById('rowsContainer').insertAdjacentHTML('beforeend', html);
-    
     const r = document.getElementById(`row-${id}`);
     const zSel = r.querySelector('.s-zone');
     [...new Set(MASTER_DATA.map(x => x[0]))].sort().forEach(z => zSel.innerHTML += `<option value="${z}">${z}</option>`);
     const tSel = r.querySelector('.s-type');
-    TYPES.forEach(t => tSel.innerHTML += `<option value="${t}">${t}</option>`);
+    FEEDER_TYPES.forEach(t => tSel.innerHTML += `<option value="${t}">${t}</option>`);
   }
 
   function sync(id, lv) {
@@ -165,18 +159,16 @@
     const c = r.querySelector('.s-circle').value;
     const d = r.querySelector('.s-div').value;
     const s = r.querySelector('.s-sub').value;
-
     const pop = (cls, idx, f) => {
       const sel = r.querySelector(`.${cls}`);
       sel.innerHTML = '<option value="">Select</option>';
       const filt = MASTER_DATA.filter(x => f.every((v, i) => x[i] === v));
       [...new Set(filt.map(x => x[idx]))].sort().forEach(v => sel.innerHTML += `<option value="${v}">${v}</option>`);
     };
-
-    if(lv==='zone') { pop('s-circle', 1, [z]); r.querySelector('.s-div').innerHTML = '<option value="">-</option>'; }
-    if(lv==='circle') { pop('s-div', 2, [z, c]); r.querySelector('.s-sub').innerHTML = '<option value="">-</option>'; }
-    if(lv==='div') { pop('s-sub', 3, [z, c, d]); }
-    if(lv==='sub') { pop('s-feeder', 4, [z, c, d, s]); }
+    if(lv==='zone'){ pop('s-circle',1,[z]); r.querySelector('.s-div').innerHTML='<option>-</option>'; }
+    if(lv==='circle'){ pop('s-div',2,[z,c]); r.querySelector('.s-sub').innerHTML='<option>-</option>'; }
+    if(lv==='div'){ pop('s-sub',3,[z,c,d]); }
+    if(lv==='sub'){ pop('s-feeder',4,[z,c,d,s]); }
   }
 
   function calc(id) {
@@ -189,56 +181,29 @@
     }
   }
 
-  function removeRow(id) {
-    if(document.querySelectorAll('.entry-card').length > 1) document.getElementById(`row-${id}`).remove();
-    else alert("Minimum one entry required.");
-  }
+  function removeRow(id) { document.getElementById(`row-${id}`).remove(); }
 
-  function submitFinal() {
+  async function submitFinal() {
     const rows = [];
     document.querySelectorAll('.entry-card').forEach(r => {
       const row = {
-        zone: r.querySelector('.s-zone').value,
-        circle: r.querySelector('.s-circle').value,
-        division: r.querySelector('.s-div').value,
-        substation: r.querySelector('.s-sub').value,
-        feeder: r.querySelector('.s-feeder').value,
-        feederType: r.querySelector('.s-type').value,
-        from: r.querySelector('.v-from').value,
-        to: r.querySelector('.v-to').value,
-        approxHrs: r.querySelector('.v-hrs').value,
-        date: r.querySelector('.v-date').value,
-        reason: r.querySelector('.v-reason').value,
-        area: r.querySelector('.v-area').value,
+        zone: r.querySelector('.s-zone').value, circle: r.querySelector('.s-circle').value,
+        division: r.querySelector('.s-div').value, substation: r.querySelector('.s-sub').value,
+        feeder: r.querySelector('.s-feeder').value, feederType: r.querySelector('.s-type').value,
+        from: r.querySelector('.v-from').value, to: r.querySelector('.v-to').value,
+        approxHrs: r.querySelector('.v-hrs').value, date: r.querySelector('.v-date').value,
+        reason: r.querySelector('.v-reason').value, area: r.querySelector('.v-area').value,
         noOfDt: r.querySelector('.v-dt').value
       };
       if(row.feeder && row.date) rows.push(row);
     });
-
-    if(rows.length === 0) return alert("Fill Feeder Name and Date for at least one row.");
-    
-    setLoader(true, "Saving Final Plan...");
-    google.script.run
-      .withSuccessHandler(res => {
-        setLoader(false);
-        if(res.status === 'success') {
-          alert("Success! Weekly plan has been saved.");
-          location.reload();
-        } else alert(res.message);
-      })
-      .processBulkSubmission({ rows, userName: USER.name });
-  }
-
-  async function pasteExcel() {
+    if(rows.length === 0) return alert("Fill data first.");
+    setLoader(true, "Saving Plan...");
     try {
-      const text = await navigator.clipboard.readText();
-      const lines = text.split('\n').filter(l => l.trim());
-      if(lines.length > 0) {
-        showLoader("Adding " + lines.length + " Rows...");
-        lines.forEach(() => addNewRow());
-        setTimeout(() => setLoader(false), 500);
-      }
-    } catch(e) { alert("Clipboard error. Use the 'Add' button instead."); }
+      const res = await api({action: 'submitPlan', rows, userName: USER.name});
+      if(res.status === 'success') { alert("Success!"); location.reload(); }
+      else alert(res.message);
+    } catch(e) { setLoader(false); alert("Submission Error"); }
   }
 </script>
 </body>
