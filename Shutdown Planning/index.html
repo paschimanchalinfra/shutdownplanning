@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root { --primary: #0F204B; --bg: #f8f9fa; }
+    body { background-color: var(--bg); font-family: sans-serif; font-size: 14px; }
+    .card-custom { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 20px; margin-top: 20px; }
+    .table-input { width: 100%; border: 1px solid #dee2e6; border-radius: 4px; padding: 4px 6px; font-size: 0.8rem; }
+    .readonly-box { background-color: #e9ecef !important; text-align: center; font-weight: bold; }
+    #loginScreen { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 10000; display:flex; align-items:center; justify-content:center; }
+    .loader { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.8); z-index: 11000; align-items:center; justify-content:center; flex-direction: column; }
+    .btn-action { font-size: 0.7rem; padding: 2px 5px; }
+    th { background-color: #f1f3f5 !important; color: var(--primary); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
+  </style>
+</head>
+<body>
+
+<div id="loader" class="loader"><div class="spinner-border text-primary mb-2"></div><div id="loaderText">Processing...</div></div>
+
+<div id="loginScreen">
+  <div class="card p-4 shadow-lg" style="width: 350px;">
+    <h4 class="text-center mb-4 text-primary fw-bold">Shutdown Plan Entry</h4>
+    <input type="text" id="l-code" class="form-control mb-2" placeholder="Emp Code">
+    <input type="password" id="l-pass" class="form-control mb-3" placeholder="Password">
+    <button class="btn btn-primary w-100 fw-bold" onclick="auth()">LOGIN</button>
+    <div id="l-err" class="text-danger small mt-2 text-center"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <div class="p-2 bg-white shadow-sm d-flex justify-content-between">
+    <span class="fw-bold">User: <span id="u-name" class="text-primary"></span></span>
+    <button class="btn btn-sm btn-danger" onclick="location.reload()">Logout</button>
+  </div>
+
+  <div class="container-fluid">
+    <div class="card-custom">
+      <div class="d-flex justify-content-between mb-3">
+        <h6 class="fw-bold m-0"><i class="bi bi-grid-3x3"></i> Planning Grid</h6>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-success" onclick="addRow()"><i class="bi bi-plus-circle"></i> Add Row</button>
+          <button class="btn btn-sm btn-outline-primary" onclick="pasteExcel()"><i class="bi bi-clipboard-plus"></i> Paste (Excel)</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+          <thead>
+            <tr>
+              <th style="min-width:180px">Hierarchy</th>
+              <th style="width:100px">Type</th>
+              <th style="width:180px">Time (From-To)</th>
+              <th style="width:130px">Date</th>
+              <th>Reason & Area</th>
+              <th style="width:65px">DTs</th>
+              <th style="width:85px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="gridBody"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-primary w-100 py-2 mt-3 fw-bold shadow" onclick="submit()">FINALIZE & SUBMIT WEEKLY PLAN</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let USER = {}; let DATA = []; let TYPES = []; let RID = 0;
+
+  function auth() {
+    const c = document.getElementById('l-code').value;
+    const p = document.getElementById('l-pass').value;
+    document.getElementById('loader').style.display='flex';
+    google.script.run.withSuccessHandler(res => {
+      const r = JSON.parse(res);
+      if(r.status === 'success') {
+        USER = r.data;
+        document.getElementById('loginScreen').style.display='none';
+        document.getElementById('app').style.display='block';
+        document.getElementById('u-name').innerText = USER.name;
+        loadData();
+      } else { document.getElementById('loader').style.display='none'; document.getElementById('l-err').innerText = r.message; }
+    }).doPost({postData: {contents: JSON.stringify({action:'login', empCode:c, password:p})}});
+  }
+
+  function loadData() {
+    google.script.run.withSuccessHandler(res => {
+      const r = JSON.parse(res);
+      DATA = r.data.hierarchy; TYPES = r.data.feederTypes;
+      if(USER.zones) {
+        const allowed = USER.zones.split(',').map(z => z.trim().toLowerCase());
+        DATA = DATA.filter(row => allowed.includes(String(row[0]).trim().toLowerCase()));
+      }
+      addRow(); document.getElementById('loader').style.display='none';
+    }).doPost({postData: {contents: JSON.stringify({action:'getAppData'})}});
+  }
+
+  function addRow() {
+    RID++; const id = RID; const tr = document.createElement('tr'); tr.id = `r-${id}`;
+    tr.innerHTML = `
+      <td>
+        <select class="table-input mb-1 s-z" onchange="filt(${id},'z')"><option value="">Zone</option></select>
+        <select class="table-input mb-1 s-c" onchange="filt(${id},'c')"><option value="">Circle</option></select>
+        <select class="table-input mb-1 s-d" onchange="filt(${id},'d')"><option value="">Div</option></select>
+        <select class="table-input mb-1 s-s" onchange="filt(${id},'s')"><option value="">Sub</option></select>
+        <select class="table-input s-f"><option value="">Feeder</option></select>
+      </td>
+      <td><select class="table-input s-t"></select></td>
+      <td>
+        <div class="d-flex gap-1 mb-1"><input type="time" class="table-input v-f" onchange="calc(${id})"><input type="time" class="table-input v-t" onchange="calc(${id})"></div>
+        <input type="text" class="table-input readonly-box v-h" placeholder="Hrs" readonly>
+      </td>
+      <td><input type="date" class="table-input v-date"></td>
+      <td><input type="text" class="table-input mb-1 v-r" placeholder="Reason"><input type="text" class="table-input v-a" placeholder="Area"></td>
+      <td><input type="number" class="table-input v-dt" oninput="if(this.value.length>2)this.value=this.value.slice(0,2)"></td>
+      <td>
+        <button class="btn btn-outline-secondary btn-action w-100 mb-1" onclick="dupe(${id})">Copy</button>
+        <button class="btn btn-outline-danger btn-action w-100" onclick="document.getElementById('r-${id}').remove()">Del</button>
+      </td>
+    `;
+    document.getElementById('gridBody').appendChild(tr);
+    const zS = tr.querySelector('.s-z'); [...new Set(DATA.map(r=>r[0]))].sort().forEach(z=>zS.innerHTML+=`<option value="${z}">${z}</option>`);
+    const tS = tr.querySelector('.s-t'); TYPES.forEach(t=>tS.innerHTML+=`<option value="${t}">${t}</option>`);
+    return id;
+  }
+
+  function filt(id, lv) {
+    const r = document.getElementById(`r-${id}`);
+    const v = ['s-z','s-c','s-d','s-s'].map(c=>r.querySelector(`.${c}`).value);
+    const pop = (cls, idx, f) => {
+      const s = r.querySelector(`.${cls}`); s.innerHTML='<option value="">...</option>';
+      const fi = DATA.filter(r=>f.every((v,i)=>r[i]===v));
+      [...new Set(fi.map(r=>r[idx]))].sort().forEach(v=>s.innerHTML+=`<option value="${v}">${v}</option>`);
+    };
+    if(lv==='z'){ pop('s-c',1,[v[0]]); } if(lv==='c'){ pop('s-d',2,[v[0],v[1]]); }
+    if(lv==='d'){ pop('s-s',3,[v[0],v[1],v[2]]); } if(lv==='s'){ pop('s-f',5,[v[0],v[1],v[2],v[3]]); }
+  }
+
+  function calc(id) {
+    const r = document.getElementById(`r-${id}`); const f = r.querySelector('.v-f').value; const t = r.querySelector('.v-t').value;
+    if(f && t) {
+      let d = (new Date(`1970-01-01T${t}`) - new Date(`1970-01-01T${f}`)) / 3600000;
+      r.querySelector('.v-h').value = (d < 0 ? d + 24 : d).toFixed(2);
+    }
+  }
+
+  function dupe(id) {
+    const o = document.getElementById(`r-${id}`); const nId = addRow(); const n = document.getElementById(`r-${nId}`);
+    ['s-z','s-c','s-d','s-s','s-f','s-t','v-f','v-t','v-date','v-r','v-a','v-dt'].forEach(c => {
+      const v = o.querySelector(`.${c}`).value; if(v){
+        if(['s-c','s-d','s-s','s-f'].includes(c)) filt(nId, c==='s-c'?'z':c==='s-d'?'c':c==='s-s'?'d':'s');
+        n.querySelector(`.${c}`).value = v;
+      }
+    }); calc(nId);
+  }
+
+  async function pasteExcel() {
+    const txt = await navigator.clipboard.readText(); const lines = txt.split('\n').filter(l=>l.trim());
+    lines.forEach(line => {
+      const cols = line.split('\t'); if(cols.length >= 5) {
+        const id = addRow(); const r = document.getElementById(`r-${id}`);
+        r.querySelector('.s-z').value = cols[0]; filt(id,'z');
+        r.querySelector('.s-c').value = cols[1]; filt(id,'c');
+        r.querySelector('.s-d').value = cols[2]; filt(id,'d');
+        r.querySelector('.s-s').value = cols[3]; filt(id,'s');
+        r.querySelector('.s-f').value = cols[4];
+        if(cols[5]) r.querySelector('.s-t').value = cols[5];
+        if(cols[11]) r.querySelector('.v-date').value = new Date(cols[11]).toISOString().split('T')[0];
+      }
+    });
+  }
+
+  function submit() {
+    const rows = []; document.querySelectorAll('#gridBody tr').forEach(tr => {
+      const d = { zone: tr.querySelector('.s-z').value, circle: tr.querySelector('.s-c').value, division: tr.querySelector('.s-d').value, substation: tr.querySelector('.s-s').value, feeder: tr.querySelector('.s-f').value, feederType: tr.querySelector('.s-t').value, from: tr.querySelector('.v-f').value, to: tr.querySelector('.v-t').value, approxHrs: tr.querySelector('.v-h').value, date: tr.querySelector('.v-date').value, reason: tr.querySelector('.v-r').value, area: tr.querySelector('.v-a').value, noOfDt: tr.querySelector('.v-dt').value };
+      if(d.feeder && d.date) rows.push(d);
+    });
+    if(rows.length===0) return alert("Fill data first.");
+    const uDates = [...new Set(rows.map(r=>r.date))];
+    if(uDates.length < 7 && !confirm("Less than 7 days planned. Proceed?")) return;
+    document.getElementById('loader').style.display='flex';
+    google.script.run.withSuccessHandler(() => { alert("Success!"); location.reload(); }).doPost({postData: {contents: JSON.stringify({action:'submitPlan', rows, userName:USER.name})}});
+  }
+</script>
+</body>
+</html>
