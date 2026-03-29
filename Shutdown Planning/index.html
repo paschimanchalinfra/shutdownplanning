@@ -6,18 +6,18 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    :root { --primary: #0F204B; --bg: #f4f7f9; }
-    body { background-color: var(--bg); font-family: 'Inter', sans-serif; padding-bottom: 85px; }
+    :root { --primary: #0F204B; --secondary: #78BE20; --bg: #f4f7f9; }
+    body { background-color: var(--bg); font-family: 'Inter', sans-serif; padding-bottom: 90px; }
     .card-custom { background: white; border-radius: 12px; padding: 18px; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 15px; }
     .section-title { font-size: 0.8rem; text-transform: uppercase; color: var(--primary); font-weight: 700; border-bottom: 2px solid #e9ecef; padding-bottom: 5px; margin-bottom: 15px; }
     .form-label { font-size: 0.72rem; font-weight: 600; color: #666; margin-bottom: 2px; }
     .loader-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.98); z-index: 10001; display: none; align-items: center; justify-content: center; flex-direction: column; }
     #loginScreen { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
     .nav-tabs-custom { position: fixed; bottom: 0; left: 0; width: 100%; background: white; z-index: 1000; display: flex; justify-content: space-around; padding: 12px; box-shadow: 0 -3px 15px rgba(0,0,0,0.08); }
-    .nav-btn { border: none; background: transparent; color: #6c757d; font-weight: 600; padding: 8px 18px; border-radius: 25px; transition: 0.2s; font-size: 0.85rem; }
+    .nav-btn { border: none; background: transparent; color: #6c757d; font-weight: 600; padding: 8px 18px; border-radius: 25px; font-size: 0.85rem; }
     .nav-btn.active { background-color: var(--primary); color: white; }
-    .entry-card { border-left: 5px solid var(--primary); position: relative; }
-    .btn-del { position: absolute; top: 10px; right: 10px; color: #dc3545; border: none; background: none; }
+    .entry-card { border-left: 5px solid var(--primary); transition: 0.3s; }
+    .no-plan-card { border-left: 5px solid #6c757d; background-color: #f8f9fa; opacity: 0.8; }
   </style>
 </head>
 <body>
@@ -30,67 +30,74 @@
 <div id="loginScreen">
   <div class="card-custom shadow-lg" style="width: 330px;">
     <h4 class="text-center mb-4 text-primary fw-bold">SHUTDOWN LOGIN</h4>
-    <input type="text" id="lCode" class="form-control mb-3" placeholder="Employee Code">
-    <input type="password" id="lPass" class="form-control mb-4" placeholder="Password">
+    <div class="mb-3">
+      <label class="form-label">Employee Code</label>
+      <input type="text" id="lCode" class="form-control" placeholder="Emp Code">
+    </div>
+    <div class="mb-4">
+      <label class="form-label">Password</label>
+      <div class="input-group">
+        <input type="password" id="lPass" class="form-control" placeholder="Password">
+        <button class="btn btn-outline-secondary" type="button" onclick="togglePass()"><i id="passIcon" class="bi bi-eye"></i></button>
+      </div>
+    </div>
     <button class="btn btn-primary w-100 fw-bold py-2" onclick="handleAuth()">LOGIN</button>
     <div id="loginMsg" class="text-danger mt-3 text-center small fw-bold"></div>
   </div>
 </div>
 
 <div id="app" style="display:none;" class="container pt-3">
-  <div class="d-flex justify-content-between mb-3 px-2">
+  <div class="d-flex justify-content-between align-items-center mb-3 px-2">
     <div><small class="text-muted">User:</small> <span id="uName" class="fw-bold"></span></div>
-    <button class="btn btn-sm btn-outline-danger" onclick="location.reload()">Logout</button>
+    <button class="btn btn-sm btn-outline-danger" onclick="logout()">Logout</button>
   </div>
+
   <div id="rowsContainer"></div>
+
   <div class="px-2 mb-4">
-    <button class="btn btn-outline-primary btn-sm w-100 mb-3" onclick="addNewRow()"><i class="bi bi-plus-circle"></i> Add Entry</button>
-    <button class="btn btn-primary w-100 py-3 fw-bold shadow-sm" onclick="submitFinal()">SUBMIT PLAN</button>
+    <button class="btn btn-primary w-100 py-3 fw-bold shadow-sm" onclick="submitFinal()">SUBMIT 7-DAY PLAN</button>
   </div>
 </div>
 
 <div class="nav-tabs-custom" id="bottomNav" style="display:none;">
-  <button class="nav-btn active"><i class="bi bi-pencil-square"></i> New Plan</button>
-  <button class="nav-btn" onclick="pasteExcel()"><i class="bi bi-clipboard-data"></i> Paste</button>
+  <button class="nav-btn active"><i class="bi bi-pencil-square"></i> Planning</button>
+  <button class="nav-btn" onclick="triggerFileUpload()"><i class="bi bi-file-earmark-excel"></i> Upload</button>
+  <input type="file" id="excelFile" hidden accept=".csv, .xlsx" onchange="handleFileUpload(event)">
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-  // UPDATE THIS URL WITH YOUR PUBLISHED SCRIPT URL
   const API_URL = "https://script.google.com/macros/s/AKfycbxfS1SvQsdmuQVe3zKHDmMAUiXB-LUr8b_ybiVFOhjkPRjFWmjS_zFmIlsVs2Zsq6S-WA/exec";
-
   let MASTER_DATA = []; let FEEDER_TYPES = []; let USER = {}; let RID = 0;
+
+  window.onload = function() {
+    const saved = localStorage.getItem('shutdown_creds');
+    if(saved) {
+      const creds = JSON.parse(saved);
+      document.getElementById('lCode').value = creds.empCode;
+      document.getElementById('lPass').value = creds.password;
+      handleAuth();
+    }
+  };
+
+  function togglePass() {
+    const p = document.getElementById('lPass');
+    const i = document.getElementById('passIcon');
+    if(p.type === "password") { p.type = "text"; i.classList.replace('bi-eye','bi-eye-slash'); }
+    else { p.type = "password"; i.classList.replace('bi-eye-slash','bi-eye'); }
+  }
 
   function setLoader(show, text = "Processing...") {
     document.getElementById('loaderText').innerText = text;
     document.getElementById('loader').style.display = show ? 'flex' : 'none';
   }
 
-  // REPLACED google.script.run WITH fetch API
-  async function callApi(payload) {
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors', // Essential for Google Apps Script CORS
-        body: JSON.stringify(payload)
-      });
-      // Due to 'no-cors', we cannot read the response body directly 
-      // if the request redirects. We must use a secondary "success" check or JSONP.
-      // Better approach for GitHub:
-      return { status: 'success' }; 
-    } catch (e) {
-      return { status: 'error', message: e.toString() };
-    }
-  }
-
-  // MORE RELIABLE FETCH FOR GOOGLE SCRIPT (CORS PROXY)
   async function api(payload) {
-    const url = API_URL;
-    const options = {
+    return fetch(API_URL, {
       method: "POST",
       body: JSON.stringify(payload),
       headers: { "Content-Type": "text/plain;charset=utf-8" }
-    };
-    return fetch(url, options).then(res => res.json());
+    }).then(res => res.json());
   }
 
   async function handleAuth() {
@@ -103,44 +110,55 @@
       const res = await api({action: 'login', empCode: code, password: pass});
       if(res.status === 'success') {
         USER = res;
+        localStorage.setItem('shutdown_creds', JSON.stringify({empCode: code, password: pass}));
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('app').style.display = 'block';
         document.getElementById('bottomNav').style.display = 'flex';
         document.getElementById('uName').innerText = res.name;
         fetchAppData();
       } else { setLoader(false); document.getElementById('loginMsg').innerText = res.message; }
-    } catch(e) { setLoader(false); alert("GitHub-to-GAS Connection Error: Ensure Web App is deployed as 'Anyone'."); }
+    } catch(e) { setLoader(false); alert("Connection Error"); }
   }
 
   async function fetchAppData() {
-    setLoader(true, "Loading Hierarchy...");
     const res = await api({action: 'getAppData'});
     if(res.status === 'success') {
       MASTER_DATA = res.hierarchy;
       FEEDER_TYPES = res.feederTypes;
-      addNewRow();
+      createWeeklyGrid();
       setLoader(false);
-    } else { setLoader(false); alert(res.message); }
+    }
+  }
+
+  function createWeeklyGrid() {
+    document.getElementById('rowsContainer').innerHTML = '';
+    for(let i=0; i<7; i++) addNewRow();
   }
 
   function addNewRow() {
     RID++; const id = RID;
     const html = `
       <div class="card-custom entry-card" id="row-${id}">
-        <button class="btn-del" onclick="removeRow(${id})"><i class="bi bi-trash3"></i></button>
-        <div class="row g-2">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="section-title m-0">Entry #${id}</h6>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" onchange="toggleNoPlan(${id}, this)">
+            <label class="form-check-label small fw-bold">No Plan</label>
+          </div>
+        </div>
+        <div class="row g-2 fields-container">
           <div class="col-6"><label class="form-label">Zone</label><select class="form-select s-zone" onchange="sync(${id},'zone')"><option value="">-</option></select></div>
           <div class="col-6"><label class="form-label">Circle</label><select class="form-select s-circle" onchange="sync(${id},'circle')"><option value="">-</option></select></div>
           <div class="col-6"><label class="form-label">Division</label><select class="form-select s-div" onchange="sync(${id},'div')"><option value="">-</option></select></div>
           <div class="col-6"><label class="form-label">Substation</label><select class="form-select s-sub" onchange="sync(${id},'sub')"><option value="">-</option></select></div>
           <div class="col-12"><label class="form-label">Feeder Name</label><select class="form-select s-feeder"><option value="">Select Feeder</option></select></div>
           <div class="col-6"><label class="form-label">Feeder Type</label><select class="form-select s-type"><option value="">-</option></select></div>
-          <div class="col-6"><label class="form-label">Date</label><input type="date" class="form-control v-date"></div>
+          <div class="col-6"><label class="form-label text-danger">Date *</label><input type="date" class="form-control v-date"></div>
           <div class="col-4"><label class="form-label">From</label><input type="time" class="form-control v-from" onchange="calc(${id})"></div>
           <div class="col-4"><label class="form-label">To</label><input type="time" class="form-control v-to" onchange="calc(${id})"></div>
           <div class="col-4"><label class="form-label">Hrs</label><input type="text" class="form-control bg-light text-center fw-bold v-hrs" readonly></div>
           <div class="col-12"><label class="form-label">Reason</label><input type="text" class="form-control v-reason"></div>
-          <div class="col-8"><label class="form-label">Affected Area</label><input type="text" class="form-control v-area"></div>
+          <div class="col-8"><label class="form-label">Area</label><input type="text" class="form-control v-area"></div>
           <div class="col-4"><label class="form-label">No. of DT</label><input type="number" class="form-control v-dt" oninput="if(this.value.length>2)this.value=this.value.slice(0,2)"></div>
         </div>
       </div>
@@ -149,8 +167,21 @@
     const r = document.getElementById(`row-${id}`);
     const zSel = r.querySelector('.s-zone');
     [...new Set(MASTER_DATA.map(x => x[0]))].sort().forEach(z => zSel.innerHTML += `<option value="${z}">${z}</option>`);
-    const tSel = r.querySelector('.s-type');
-    FEEDER_TYPES.forEach(t => tSel.innerHTML += `<option value="${t}">${t}</option>`);
+    FEEDER_TYPES.forEach(t => r.querySelector('.s-type').innerHTML += `<option value="${t}">${t}</option>`);
+  }
+
+  function toggleNoPlan(id, cb) {
+    const r = document.getElementById(`row-${id}`);
+    const fields = r.querySelectorAll('.form-control, .form-select');
+    if(cb.checked) {
+      r.classList.add('no-plan-card');
+      fields.forEach(f => { if(!f.classList.contains('v-date')) f.disabled = true; });
+      r.querySelector('.v-reason').value = "No Plan Assigned";
+    } else {
+      r.classList.remove('no-plan-card');
+      fields.forEach(f => f.disabled = false);
+      r.querySelector('.v-reason').value = "";
+    }
   }
 
   function sync(id, lv) {
@@ -165,8 +196,8 @@
       const filt = MASTER_DATA.filter(x => f.every((v, i) => x[i] === v));
       [...new Set(filt.map(x => x[idx]))].sort().forEach(v => sel.innerHTML += `<option value="${v}">${v}</option>`);
     };
-    if(lv==='zone'){ pop('s-circle',1,[z]); r.querySelector('.s-div').innerHTML='<option>-</option>'; }
-    if(lv==='circle'){ pop('s-div',2,[z,c]); r.querySelector('.s-sub').innerHTML='<option>-</option>'; }
+    if(lv==='zone'){ pop('s-circle',1,[z]); }
+    if(lv==='circle'){ pop('s-div',2,[z,c]); }
     if(lv==='div'){ pop('s-sub',3,[z,c,d]); }
     if(lv==='sub'){ pop('s-feeder',4,[z,c,d,s]); }
   }
@@ -181,30 +212,79 @@
     }
   }
 
-  function removeRow(id) { document.getElementById(`row-${id}`).remove(); }
-
   async function submitFinal() {
-    const rows = [];
+    const rows = []; let validDates = new Set();
     document.querySelectorAll('.entry-card').forEach(r => {
+      const isNoPlan = r.querySelector('.form-check-input').checked;
+      const date = r.querySelector('.v-date').value;
+      if(date) validDates.add(date);
+      
       const row = {
-        zone: r.querySelector('.s-zone').value, circle: r.querySelector('.s-circle').value,
-        division: r.querySelector('.s-div').value, substation: r.querySelector('.s-sub').value,
-        feeder: r.querySelector('.s-feeder').value, feederType: r.querySelector('.s-type').value,
+        zone: r.querySelector('.s-zone').value, feeder: r.querySelector('.s-feeder').value,
+        date: date, reason: r.querySelector('.v-reason').value, 
+        area: r.querySelector('.v-area').value, noOfDt: r.querySelector('.v-dt').value,
         from: r.querySelector('.v-from').value, to: r.querySelector('.v-to').value,
-        approxHrs: r.querySelector('.v-hrs').value, date: r.querySelector('.v-date').value,
-        reason: r.querySelector('.v-reason').value, area: r.querySelector('.v-area').value,
-        noOfDt: r.querySelector('.v-dt').value
+        approxHrs: r.querySelector('.v-hrs').value, circle: r.querySelector('.s-circle').value,
+        division: r.querySelector('.s-div').value, substation: r.querySelector('.s-sub').value,
+        feederType: r.querySelector('.s-type').value
       };
-      if(row.feeder && row.date) rows.push(row);
+      
+      if(!isNoPlan && (!row.feeder || !row.date)) return; 
+      rows.push(row);
     });
-    if(rows.length === 0) return alert("Fill data first.");
-    setLoader(true, "Saving Plan...");
-    try {
-      const res = await api({action: 'submitPlan', rows, userName: USER.name});
-      if(res.status === 'success') { alert("Success!"); location.reload(); }
-      else alert(res.message);
-    } catch(e) { setLoader(false); alert("Submission Error"); }
+
+    if(validDates.size < 7) {
+      alert(`⚠️ Validation Failed: You must provide a plan (or 'No Plan') for all 7 days of the week. Current days: ${validDates.size}/7`);
+      return;
+    }
+
+    setLoader(true, "Finalizing Submission...");
+    const res = await api({action: 'submitPlan', rows, userName: USER.name});
+    if(res.status === 'success') {
+      alert("Weekly Plan Submitted Successfully!");
+      setLoader(false);
+      createWeeklyGrid(); 
+    } else { setLoader(false); alert(res.message); }
   }
+
+  function triggerFileUpload() { document.getElementById('excelFile').click(); }
+
+  function handleFileUpload(e) {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
+      
+      showLoader("Parsing File...");
+      createWeeklyGrid();
+      const cards = document.querySelectorAll('.entry-card');
+      
+      json.slice(1, 8).forEach((row, i) => {
+        if(!cards[i]) return;
+        const r = cards[i];
+        if(row[0]) { // If data exists, populate
+          r.querySelector('.s-zone').value = row[0]; sync(i+1, 'zone');
+          r.querySelector('.s-circle').value = row[1]; sync(i+1, 'circle');
+          r.querySelector('.v-date').value = formatDate(row[11]);
+          r.querySelector('.s-feeder').innerHTML = `<option value="${row[4]}" selected>${row[4]}</option>`;
+          r.querySelector('.v-reason').value = row[9] || "";
+        }
+      });
+      setLoader(false);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function formatDate(excelDate) {
+    if(!excelDate) return "";
+    const date = new Date((excelDate - 25569) * 86400 * 1000);
+    return date.toISOString().split('T')[0];
+  }
+
+  function logout() { localStorage.removeItem('shutdown_creds'); location.reload(); }
 </script>
 </body>
 </html>
