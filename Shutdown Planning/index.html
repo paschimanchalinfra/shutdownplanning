@@ -10,14 +10,13 @@
     body { background-color: var(--bg); font-family: 'Inter', sans-serif; padding-bottom: 90px; }
     .card-custom { background: white; border-radius: 12px; padding: 15px; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 15px; }
     
-    /* Desktop Grid Styles */
     @media (min-width: 992px) {
       .grid-wrapper { background: white; border-radius: 8px; overflow: auto; max-height: 65vh; border: 1px solid #ddd; }
       .excel-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-      .excel-table th { position: sticky; top: 0; background: #f1f3f5; z-index: 10; border: 1px solid #ddd; padding: 8px; font-size: 0.7rem; text-align: center; }
+      .excel-table th { position: sticky; top: 0; background: #f1f3f5; z-index: 10; border: 1px solid #ddd; padding: 8px; font-size: 0.65rem; text-align: center; }
       .excel-table td { border: 1px solid #eee; padding: 0; }
       .grid-in { border: none; width: 100%; height: 38px; padding: 5px; font-size: 0.8rem; outline: none; }
-      .grid-in:focus { background: #e8f0fe; border: 1px solid var(--primary); }
+      .grid-in:focus { background: #e8f0fe; }
     }
 
     .loader-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9); z-index: 10001; display: none; align-items: center; justify-content: center; flex-direction: column; }
@@ -48,7 +47,7 @@
   <div class="d-flex justify-content-between align-items-center mb-3 bg-white p-2 rounded shadow-sm">
     <div class="fw-bold"><i class="bi bi-person-badge"></i> <span id="uName"></span></div>
     <div class="d-flex gap-2">
-      <button class="btn btn-sm btn-info text-white" onclick="loadHistory()"><i class="bi bi-clock-history"></i> Load Last Plan</button>
+      <button class="btn btn-sm btn-info text-white" onclick="loadHistory()"><i class="bi bi-clock-history"></i> Load History</button>
       <button class="btn btn-sm btn-outline-primary" onclick="downloadFormat()"><i class="bi bi-download"></i> Format</button>
       <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
     </div>
@@ -59,17 +58,18 @@
       <thead>
         <tr>
           <th style="width: 40px;">#</th>
-          <th style="width: 150px;">Zone</th>
-          <th style="width: 150px;">Circle</th>
-          <th style="width: 150px;">Division</th>
+          <th style="width: 140px;">Zone</th>
+          <th style="width: 140px;">Circle</th>
+          <th style="width: 140px;">Division</th>
           <th style="width: 150px;">Substation</th>
-          <th style="width: 180px;">Feeder</th>
-          <th style="width: 100px;">Type</th>
+          <th style="width: 160px;">Feeder</th>
+          <th style="width: 90px;">Type</th>
           <th style="width: 130px;">Date</th>
-          <th style="width: 80px;">From</th>
-          <th style="width: 80px;">To</th>
-          <th style="width: 180px;">Reason</th>
-          <th style="width: 150px;">Area</th>
+          <th style="width: 75px;">From</th>
+          <th style="width: 75px;">To</th>
+          <th style="width: 150px;">Reason</th>
+          <th style="width: 120px;">Area</th>
+          <th style="width: 60px;">DTs</th>
           <th style="width: 80px;">Action</th>
         </tr>
       </thead>
@@ -78,15 +78,15 @@
   </div>
 
   <div class="mt-3 p-2">
-    <button class="btn btn-success btn-sm mb-2 w-100" onclick="addRow()"><i class="bi bi-plus-lg"></i> Add Entry Row</button>
-    <button class="btn btn-primary w-100 py-3 fw-bold shadow" onclick="submit()">SUBMIT PLAN (MIN 7 DAYS)</button>
+    <button class="btn btn-success btn-sm mb-2 w-100" onclick="addRow()"><i class="bi bi-plus-lg"></i> Add New Row</button>
+    <button class="btn btn-primary w-100 py-3 fw-bold shadow" onclick="submit()">FINALIZE & SUBMIT (MIN 7 DAYS)</button>
   </div>
 </div>
 
 <div class="nav-tabs-custom" id="bottomNav" style="display:none;">
   <button class="btn btn-link nav-btn active" onclick="location.reload()"><i class="bi bi-house"></i> Home</button>
   <button class="btn btn-link nav-btn" onclick="document.getElementById('fUp').click()"><i class="bi bi-file-earmark-arrow-up"></i> Upload</button>
-  <input type="file" id="fUp" hidden accept=".xlsx, .csv" onchange="handleUpload(event)">
+  <input type="file" id="fUp" hidden accept=".xlsx, .csv" onchange="handleFileUpload(event)">
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -102,8 +102,10 @@
   function setLoader(s, t) { document.getElementById('loader').style.display = s ? 'flex' : 'none'; document.getElementById('lText').innerText = t; }
 
   async function api(p) {
-    const r = await fetch(API_URL, {method:"POST", body:JSON.stringify(p), headers:{"Content-Type":"text/plain"}});
-    return r.json();
+    try {
+      const r = await fetch(API_URL, {method:"POST", body:JSON.stringify(p), headers:{"Content-Type":"text/plain"}});
+      return await r.json();
+    } catch(e) { console.error("API Error:", e); return {status:'error', message: e.toString()}; }
   }
 
   async function auth() {
@@ -139,6 +141,7 @@
       <td><input type="text" class="grid-in v-h readonly-box" readonly></td>
       <td><input type="text" class="grid-in v-r" placeholder="Reason"></td>
       <td><input type="text" class="grid-in v-a" placeholder="Area"></td>
+      <td><input type="number" class="grid-in v-dt" oninput="if(this.value.length>2)this.value=this.value.slice(0,2)"></td>
       <td>
         <div class="d-flex justify-content-center gap-2 mt-1">
           <i class="bi bi-files text-primary btn-icon" title="Duplicate" onclick="dupe(${id})"></i>
@@ -153,26 +156,50 @@
     if(d) fillRow(id, d);
   }
 
+  /**
+   * FIXED: date split bug & mapping errors
+   */
+  function normalizeDate(dVal) {
+    if (!dVal) return "";
+    try {
+      let d = (dVal instanceof Date) ? dVal : new Date(dVal);
+      // Handle Excel numeric dates if library doesn't convert them
+      if (typeof dVal === 'number') d = new Date((dVal - 25569) * 86400 * 1000);
+      
+      if (isNaN(d.getTime())) return "";
+      return d.toISOString().split('T')[0];
+    } catch(e) { return ""; }
+  }
+
   function fillRow(id, d) {
     const r = document.getElementById(`r-${id}`);
-    r.querySelector('.s-z').value = d.zone || ""; sync(id, 'z');
-    r.querySelector('.s-c').value = d.circle || ""; sync(id, 'c');
-    r.querySelector('.s-d').value = d.division || ""; sync(id, 'd');
-    r.querySelector('.s-s').value = d.substation || ""; sync(id, 's');
-    // For Feeder Name, since it's dynamic, we force the option if not present
-    const fSel = r.querySelector('.s-f');
-    if (d.feeder) { fSel.innerHTML = `<option value="${d.feeder}">${d.feeder}</option>`; fSel.value = d.feeder; }
-    r.querySelector('.s-t').value = d.feederType || "";
-    r.querySelector('.v-date').value = d.date ? d.date.split('T')[0] : "";
-    r.querySelector('.v-f').value = d.from || "";
-    r.querySelector('.v-t').value = d.to || "";
-    r.querySelector('.v-r').value = d.reason || "";
-    r.querySelector('.v-a').value = d.area || "";
-    calc(id);
+    if(!r) return;
+    
+    try {
+      r.querySelector('.s-z').value = d.zone || ""; sync(id, 'z');
+      r.querySelector('.s-c').value = d.circle || ""; sync(id, 'c');
+      r.querySelector('.s-d').value = d.division || ""; sync(id, 'd');
+      r.querySelector('.s-s').value = d.substation || ""; sync(id, 's');
+      
+      if (d.feeder) {
+        const fSel = r.querySelector('.s-f');
+        fSel.innerHTML = `<option value="${d.feeder}" selected>${d.feeder}</option>`;
+      }
+      
+      r.querySelector('.s-t').value = d.feederType || "";
+      r.querySelector('.v-date').value = normalizeDate(d.date);
+      r.querySelector('.v-f').value = d.from || "";
+      r.querySelector('.v-t').value = d.to || "";
+      r.querySelector('.v-r').value = d.reason || "";
+      r.querySelector('.v-a').value = d.area || "";
+      r.querySelector('.v-dt').value = d.noOfDt || "";
+      calc(id);
+    } catch(err) { console.error("Fill Row Error:", err); }
   }
 
   function sync(id, lv) {
     const r = document.getElementById(`r-${id}`);
+    if(!r) return;
     const v = [r.querySelector('.s-z').value, r.querySelector('.s-c').value, r.querySelector('.s-d').value, r.querySelector('.s-s').value];
     const pop = (cls, idx, f) => {
       const sel = r.querySelector(`.${cls}`); sel.innerHTML = '<option value="">-</option>';
@@ -180,13 +207,14 @@
       [...new Set(filt.map(x => x[idx]))].sort().forEach(v => sel.innerHTML += `<option value="${v}">${v}</option>`);
     };
     if(lv==='z') pop('s-c', 1, [v[0]]);
-    if(lv==='c') pop('s-d', 2, [v[0], v[1]]);
-    if(lv==='d') pop('s-s', 3, [v[0], v[1], v[2]]);
-    if(lv==='s') pop('s-f', 4, [v[0], v[1], v[2], v[3]]);
+    if(lv==='circle' || lv==='c') pop('s-d', 2, [v[0], v[1]]);
+    if(lv==='div' || lv==='d') pop('s-s', 3, [v[0], v[1], v[2]]);
+    if(lv==='sub' || lv==='s') pop('s-f', 4, [v[0], v[1], v[2], v[3]]);
   }
 
   function calc(id) {
-    const r = document.getElementById(`r-${id}`); const f = r.querySelector('.v-f').value; const t = r.querySelector('.v-t').value;
+    const r = document.getElementById(`r-${id}`); if(!r) return;
+    const f = r.querySelector('.v-f').value; const t = r.querySelector('.v-t').value;
     if(f && t) {
       let d = (new Date("1970-01-01 " + t) - new Date("1970-01-01 " + f)) / 3600000;
       r.querySelector('.v-h').value = (d < 0 ? d + 24 : d).toFixed(2);
@@ -194,11 +222,11 @@
   }
 
   function dupe(id) {
-    const o = document.getElementById(`r-${id}`);
+    const o = document.getElementById(`r-${id}`); if(!o) return;
     const data = {
       zone: o.querySelector('.s-z').value, circle: o.querySelector('.s-c').value, division: o.querySelector('.s-d').value,
       substation: o.querySelector('.s-s').value, feeder: o.querySelector('.s-f').value, feederType: o.querySelector('.s-t').value,
-      reason: o.querySelector('.v-r').value, area: o.querySelector('.v-a').value
+      reason: o.querySelector('.v-r').value, area: o.querySelector('.v-area').value, noOfDt: o.querySelector('.v-dt').value
     };
     addRow(data);
   }
@@ -209,38 +237,40 @@
     setLoader(true, "Fetching History...");
     const res = await api({action: 'getHistory', userName: USER.name});
     if(res.history && res.history.length > 0) {
-      if(confirm("Load last 7 entries into the grid? Current unsaved entries will remain.")) {
-        res.history.slice(0, 7).forEach(row => {
+      if(confirm(`Found ${res.history.length} recent entries. Load them into the grid?`)) {
+        res.history.forEach(row => {
           addRow({
             zone: row[0], circle: row[1], division: row[2], substation: row[3], feeder: row[4],
-            feederType: row[5], from: row[6], to: row[7], reason: row[9], area: row[10]
+            feederType: row[5], from: row[6], to: row[7], reason: row[9], area: row[10], noOfDt: row[12]
           });
         });
       }
-    } else { alert("No history found."); }
+    } else alert("No history found.");
     setLoader(false);
   }
 
   function downloadFormat() {
     const csv = "Zone,Circle,Division,Substation Name,Feeder Name,Feeder Type,From(HH:mm),To(HH:mm),Date(YYYY-MM-DD),Reason,Area,No. of DT\nBULANDSHAHAR,EDC HAPUR,EDD GARHMUK,DATTIYANA_16734,CHATNORA_16734,Urban,10:00,14:00,2026-04-01,Maintenance,Villages,25";
     const blob = new Blob([csv], {type: 'text/csv'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Format.csv'; a.click();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Shutdown_Format.csv'; a.click();
   }
 
-  function handleUpload(e) {
+  function handleFileUpload(e) {
     const f = e.target.files[0]; if(!f) return;
-    setLoader(true, "Processing File...");
+    setLoader(true, "Mapping File...");
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const wb = XLSX.read(evt.target.result, {type:'binary'});
-      const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-      data.forEach(row => {
-        addRow({
-          zone: row["Zone"], circle: row["Circle"], division: row["Division"], substation: row["Substation Name"],
-          feeder: row["Feeder Name"], feederType: row["Feeder Type"], from: row["From(HH:mm)"], to: row["To(HH:mm)"],
-          date: row["Date(YYYY-MM-DD)"], reason: row["Reason"], area: row["Area"]
+      try {
+        const wb = XLSX.read(evt.target.result, {type:'binary'});
+        const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        data.forEach(row => {
+          addRow({
+            zone: row["Zone"], circle: row["Circle"], division: row["Division"], substation: row["Substation Name"],
+            feeder: row["Feeder Name"], feederType: row["Feeder Type"], from: row["From(HH:mm)"], to: row["To(HH:mm)"],
+            date: row["Date(YYYY-MM-DD)"] || row["Date of Shutdown"], reason: row["Reason"], area: row["Area"], noOfDt: row["No. of DT"]
+          });
         });
-      });
+      } catch(err) { alert("File processing failed."); }
       setLoader(false);
     };
     reader.readAsBinaryString(f);
@@ -248,20 +278,33 @@
 
   async function submit() {
     const rows = []; const dates = new Set();
-    document.querySelectorAll('#gridBody tr').forEach(r => {
-      const dt = r.querySelector('.v-date').value; if(dt) dates.add(dt);
+    const rowsInDOM = document.querySelectorAll('#gridBody tr');
+    
+    // SAFE HELPER to prevent null pointer exceptions
+    const getVal = (parent, cls) => {
+      const el = parent.querySelector(cls);
+      return el ? el.value : "";
+    };
+
+    rowsInDOM.forEach(tr => {
+      const dt = getVal(tr, '.v-date');
+      if(dt) dates.add(dt);
+      
       rows.push({
-        zone: r.querySelector('.s-z').value, feeder: r.querySelector('.s-f').value, date: dt,
-        from: r.querySelector('.v-f').value, to: r.querySelector('.v-t').value, approxHrs: r.querySelector('.v-h').value,
-        reason: r.querySelector('.v-r').value, area: r.querySelector('.v-a').value, circle: r.querySelector('.s-c').value,
-        division: r.querySelector('.s-d').value, substation: r.querySelector('.s-sub').value, feederType: r.querySelector('.s-t').value,
-        noOfDt: 0
+        zone: getVal(tr, '.s-z'), feeder: getVal(tr, '.s-f'), date: dt,
+        from: getVal(tr, '.v-f'), to: getVal(tr, '.v-t'), approxHrs: getVal(tr, '.v-h'),
+        reason: getVal(tr, '.v-r'), area: getVal(tr, '.v-a'), circle: getVal(tr, '.s-c'),
+        division: getVal(tr, '.s-d'), substation: getVal(tr, '.s-s'), feederType: getVal(tr, '.s-t'),
+        noOfDt: getVal(tr, '.v-dt')
       });
     });
+
     if(dates.size < 7) return alert("MIN 7 UNIQUE DAYS REQUIRED.");
-    setLoader(true, "Saving...");
+    
+    setLoader(true, "Saving Submission...");
     const res = await api({action: 'submitPlan', rows, userName: USER.name});
-    if(res.status==='success') { alert("Success!"); location.reload(); }
+    if(res.status==='success') { alert("Plan Saved Successfully!"); location.reload(); }
+    else { setLoader(false); alert(res.message); }
   }
 
   function logout() { localStorage.removeItem('shutdown_creds'); location.reload(); }
